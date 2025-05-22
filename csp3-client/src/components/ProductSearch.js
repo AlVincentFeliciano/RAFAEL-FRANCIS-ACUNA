@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Product from './Product';
-import { Col, Card } from 'react-bootstrap';
+import { Col, Row, Card, Form, Button, Spinner, Alert } from 'react-bootstrap';
 
 const ProductSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -8,15 +8,48 @@ const ProductSearch = () => {
   const [maxPrice, setMaxPrice] = useState(100000);
   const [searchResults, setSearchResults] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSearchByName = async () => {
+  // Debounce searchQuery to avoid too many calls
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const validatePriceRange = () => {
+    if (minPrice < 0 || maxPrice < 0) {
+      setError("Prices can't be negative.");
+      return false;
+    }
+    if (minPrice > maxPrice) {
+      setError('Minimum price cannot be greater than maximum price.');
+      return false;
+    }
+    if (maxPrice > 100000) {
+      setError('Maximum price cannot exceed 100,000.');
+      return false;
+    }
+    return true;
+  };
+
+  const fetchProducts = useCallback(async () => {
+    if (!validatePriceRange()) return;
+
+    setLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/products/searchByName`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/products/search`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name: searchQuery })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: debouncedQuery,
+          minPrice,
+          maxPrice,
+        }),
       });
 
       if (!response.ok) {
@@ -25,37 +58,15 @@ const ProductSearch = () => {
       }
 
       const data = await response.json();
-      setSearchResults(data);
-      setError(null);
-    } catch (error) {
-      console.error('Error searching for products by name:', error);
-      setError('An error occurred while searching for products. Please try again.');
+      setSearchResults(data.products || data);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Failed to fetch products. Please try again later.');
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSearchByPrice = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/products/searchByPrice`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ minPrice, maxPrice })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Unknown error');
-      }
-
-      const data = await response.json();
-      setSearchResults(data.products);
-      setError(null);
-    } catch (error) {
-      console.error('Error searching for products by price:', error);
-      setError('An error occurred while searching for products. Please try again.');
-    }
-  };
+  }, [debouncedQuery, minPrice, maxPrice]);
 
   const handleClear = () => {
     setSearchQuery('');
@@ -65,98 +76,163 @@ const ProductSearch = () => {
     setError(null);
   };
 
+  // Trigger search on debouncedQuery or price change if any filter is active
+  useEffect(() => {
+    if (debouncedQuery || minPrice !== 0 || maxPrice !== 100000) {
+      fetchProducts();
+    } else {
+      setSearchResults(null);
+    }
+  }, [debouncedQuery, minPrice, maxPrice, fetchProducts]);
+
+  // Helpers to safely update min and max prices with bounds
+  const updateMinPrice = val => {
+    if (val < 0) val = 0;
+    if (val > maxPrice) val = maxPrice;
+    setMinPrice(val);
+  };
+
+  const updateMaxPrice = val => {
+    if (val < minPrice) val = minPrice;
+    if (val > 100000) val = 100000;
+    setMaxPrice(val);
+  };
+
   return (
-    <div className='pt-5 container'>
-      <h2>Product Search</h2>
-      <div className="form-group">
-        <label htmlFor="productName">Product Name:</label>
-        <input
-          type="text"
-          id="productName"
-          className="form-control"
-          value={searchQuery}
-          onChange={event => setSearchQuery(event.target.value)}
-        />
-      </div>
-      <div className="form-group">
-        <label htmlFor="minPrice">Minimum Price:</label>
-        <div className="input-group">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => setMinPrice(prevMinPrice => Math.max(prevMinPrice - 1000, 0))}
-          >
-            -
-          </button>
-          <input
-            type="number"
-            id="minPrice"
-            className="form-control"
-            value={minPrice}
-            onChange={event => setMinPrice(parseInt(event.target.value))}
+    <div className="pt-5 container" style={{ maxWidth: '1100px' }}>
+      <h2 className="mb-4 text-center" style={{ fontWeight: '700', color: '#4a4a4a' }}>
+        Product Search
+      </h2>
+
+      <Form>
+        <Form.Group controlId="productName" className="mb-4">
+          <Form.Label>Product Name</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Enter product name"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
           />
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => setMinPrice(prevMinPrice => Math.min(prevMinPrice + 1000, maxPrice - 1000))}
+        </Form.Group>
+
+        <Row className="mb-4 g-4 align-items-center">
+          <Col xs={12} md={6}>
+            <Form.Label htmlFor="minPrice">Minimum Price</Form.Label>
+            <div className="d-flex align-items-center gap-2">
+              <Button
+                variant="secondary"
+                className="rounded-pill"
+                onClick={() => updateMinPrice(minPrice - 1000)}
+                disabled={loading}
+                aria-label="Decrease minimum price"
+              >
+                –
+              </Button>
+              <Form.Control
+                type="number"
+                id="minPrice"
+                min={0}
+                max={maxPrice}
+                value={minPrice}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val)) updateMinPrice(val);
+                }}
+                disabled={loading}
+              />
+              <Button
+                variant="secondary"
+                className="rounded-pill"
+                onClick={() => updateMinPrice(minPrice + 1000)}
+                disabled={loading}
+                aria-label="Increase minimum price"
+              >
+                +
+              </Button>
+            </div>
+          </Col>
+
+          <Col xs={12} md={6}>
+            <Form.Label htmlFor="maxPrice">Maximum Price</Form.Label>
+            <div className="d-flex align-items-center gap-2">
+              <Button
+                variant="secondary"
+                className="rounded-pill"
+                onClick={() => updateMaxPrice(maxPrice - 1000)}
+                disabled={loading}
+                aria-label="Decrease maximum price"
+              >
+                –
+              </Button>
+              <Form.Control
+                type="number"
+                id="maxPrice"
+                min={minPrice}
+                max={100000}
+                value={maxPrice}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val)) updateMaxPrice(val);
+                }}
+                disabled={loading}
+              />
+              <Button
+                variant="secondary"
+                className="rounded-pill"
+                onClick={() => updateMaxPrice(maxPrice + 1000)}
+                disabled={loading}
+                aria-label="Increase maximum price"
+              >
+                +
+              </Button>
+            </div>
+          </Col>
+        </Row>
+
+        <div className="mb-5 d-flex gap-3 flex-wrap justify-content-center">
+          <Button 
+            variant="primary" 
+            className="rounded-pill"
+            onClick={fetchProducts}
+            disabled={loading}
           >
-            +
-          </button>
+            {loading ? <Spinner animation="border" size="sm" /> : 'Search'}
+          </Button>
+          <Button 
+            variant="outline-secondary" 
+            className="ms-2 rounded-pill"
+            onClick={handleClear}
+            disabled={loading}
+          >
+            Clear
+          </Button>
         </div>
-      </div>
-      <div className="form-group">
-        <label htmlFor="maxPrice">Maximum Price:</label>
-        <div className="input-group">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => setMaxPrice(prevMaxPrice => Math.max(prevMaxPrice - 1000, minPrice + 1000))}
-          >
-            -
-          </button>
-          <input
-            type="number"
-            id="maxPrice"
-            className="form-control"
-            value={maxPrice}
-            onChange={event => setMaxPrice(parseInt(event.target.value))}
-          />
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => setMaxPrice(prevMaxPrice => Math.min(prevMaxPrice + 1000, 100000))}
-          >
-            +
-          </button>
-        </div>
-      </div>
-      <button className="btn btn-primary my-4" onClick={handleSearchByName}>
-        Search by Name
-      </button>
-      <button className="btn btn-primary mx-2 my-4" onClick={handleSearchByPrice}>
-        Search by Price
-      </button>
-      <button className="btn btn-danger mx-2 my-4" onClick={handleClear}>
-        Clear
-      </button>
-      {error && <p className="text-danger">{error}</p>}
+      </Form>
+
+      {error && (
+        <Alert variant="danger" className="my-3 text-center" style={{ fontWeight: '600' }}>
+          {error}
+        </Alert>
+      )}
+
       {searchResults !== null && (
         <>
-          <h3>Search Results:</h3>
+          <h3 className="mb-3" style={{ textAlign: 'center' }}>
+            Search Results:
+          </h3>
+
           {searchResults.length === 0 ? (
-            <Col xs={12} md={12} className="mt-4">
-              <Card className="card1">
-                <Card.Body>
-                  <Card.Title className="text-center card2">No matching products found</Card.Title>
-                </Card.Body>
-              </Card>
-            </Col>
+            <Card className="mt-4 text-center shadow-sm rounded-3">
+              <Card.Body>No matching products found</Card.Body>
+            </Card>
           ) : (
-            <ul>
+            <Row xs={1} sm={2} md={3} lg={4} className="g-4 mt-2">
               {searchResults.map(product => (
-                <Product data={product} key={product._id} />
+                <Col key={product._id}>
+                  <Product data={product} />
+                </Col>
               ))}
-            </ul>
+            </Row>
           )}
         </>
       )}

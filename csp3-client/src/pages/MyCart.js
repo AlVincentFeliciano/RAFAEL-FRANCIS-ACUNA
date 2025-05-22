@@ -274,21 +274,28 @@ const clearCart = () => {
 
 
 return (
-willRedirect === true ? (
-	<Redirect to="/orders" />
-	) : (
-	cart.length <= 0 ? (
-		<Jumbotron>
-			<h3 className="text-center">
-				Your cart is empty! <Link to="/products">Start shopping.</Link>
-			</h3>
-		</Jumbotron>
-		) 
-	: (
-		<Container>
-			<h2 className="text-center my-4">Your Shopping Cart</h2>
-			
-			<Table striped bordered hover responsive>
+  <div
+    style={{
+      minHeight: "100vh",
+      fontFamily: "'Poppins', sans-serif",
+      background: "linear-gradient(135deg, #1a1a2e 0%, #30305a 100%)",
+      paddingTop: "2rem",
+      paddingBottom: "4rem",
+    }}
+  >
+    {willRedirect === true ? (
+      <Redirect to="/orders" />
+    ) : cart.length <= 0 ? (
+      <Jumbotron>
+        <h3 className="text-center text-white">
+          Your cart is empty! <Link to="/products" className="text-info">Start shopping</Link>
+        </h3>
+      </Jumbotron>
+    ) : (
+      <Container>
+        <h2 className="text-center my-4 text-white">Your Shopping Cart</h2>
+        
+        <Table striped bordered hover responsive className="bg-white">
 				<thead className="bg-secondary text-white">
 					<tr>
 						<th>Name</th>
@@ -313,11 +320,11 @@ willRedirect === true ? (
 					</tr>
 				</tbody>
 			</Table>
-			 		<Button variant="danger" block onClick={clearCart}>
-            Clear Cart
-          </Button>
-		</Container>
-		)
-		)
-	);
+        <Button variant="danger" block onClick={clearCart}>
+          Clear Cart
+        </Button>
+      </Container>
+    )}
+  </div>
+);
 }
