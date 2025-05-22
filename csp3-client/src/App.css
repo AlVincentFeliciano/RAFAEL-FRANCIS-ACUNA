@@ -18,6 +18,32 @@
   overflow: auto;
 }
 
+.highlight-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.highlight-card:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  z-index: 2;
+}
+
+.order-card,
+.highlight-card {
+  transition: transform 0.22s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s;
+}
+
+.order-card:hover,
+.highlight-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+  z-index: 2;
+}
+
+body {
+  background: #f6f8fa;
+}
+
 #motto {
   font-style: italic;
 }

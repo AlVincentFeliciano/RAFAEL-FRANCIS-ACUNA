@@ -1,61 +1,32 @@
-import React, { useContext } from 'react';
-import { Navbar, Nav } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { Navbar, Nav, Container, Button } from "react-bootstrap";
+import { Link, useHistory } from "react-router-dom";
 
-import UserContext from '../UserContext';
+export default function AppNavBar() {
+  // You may want to fetch user info from context here for conditional links
+  // For demo purposes, we'll assume user is always logged in
 
-export default function AppNavBar(){
-
-    const { user } = useContext(UserContext);
-
-    return(
-        <Navbar bg="secondary" variant="dark" expand="lg">
-            <Link className="navbar-brand" to="/">The UA Shop</Link>
-            <Navbar.Toggle aria-controls="basic-navbar-nav" />
-            <Navbar.Collapse id="basic-navbar-nav">
-                <Nav className="mr-auto">
-                    <Link className="nav-link" to="/products">
-                        {user.isAdmin === true ?
-                                <span>Admin Dashboard</span>
-                            :
-                                <span>Products</span>
-                        }   
-                    </Link>
-                </Nav>
-                <Nav className="ms-auto">
-                    {user.id !== null ? 
-                            user.isAdmin === true ? 
-                                    <Link className="nav-link" to="/logout">
-                                        Log Out
-                                    </Link>
-                                :
-                                    <React.Fragment>
-                                        <Link className="nav-link" to="/cart">
-                                            Cart
-                                        </Link>
-                                        <Link className="nav-link" to="/orders">
-                                            Orders
-                                        </Link>
-                                        <Link className="nav-link" to="/profile">
-                                            Profile
-                                        </Link>
-                                        <Link className="nav-link" to="/logout">
-                                            Log Out
-                                        </Link>
-                                    </React.Fragment>
-                        :
-                            <React.Fragment>
-                                <Link className="nav-link" to={{pathname: '/login', state: { from: 'navbar'}}}>
-                                    Log In
-                                </Link>
-                                <Link className="nav-link" to="/register">
-                                    Register
-                                </Link>
-                            </React.Fragment>
-                    }               
-                </Nav>
-            </Navbar.Collapse>
-        </Navbar>
-    );
-    
+  return (
+    <Navbar bg="primary" expand="lg" variant="dark" className="py-3 shadow">
+      <Container>
+        <Navbar.Brand as={Link} to="/" className="fw-bold fs-3">
+          <span role="img" aria-label="logo">🛒</span> ShopSmart
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="main-navbar" />
+        <Navbar.Collapse id="main-navbar">
+          <Nav className="me-auto">
+            <Nav.Link as={Link} to="/" className="fs-5">Home</Nav.Link>
+            <Nav.Link as={Link} to="/products" className="fs-5">Products</Nav.Link>
+            <Nav.Link as={Link} to="/orders" className="fs-5">Orders</Nav.Link>
+            <Nav.Link as={Link} to="/cart" className="fs-5">Cart</Nav.Link>
+            <Nav.Link as={Link} to="/profile" className="fs-5">Profile</Nav.Link>
+          </Nav>
+          <Nav>
+            <Button as={Link} to="/logout" variant="outline-light" className="mx-2 px-4">
+              Logout
+            </Button>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
+  );
 }
